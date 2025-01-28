@@ -13,19 +13,19 @@ import (
 	"time"
 
 	"github.com/bakks/butterfish/util"
-	openai "github.com/sashabaranov/go-openai"
+	ollama "github.com/ollama/ollama-go"
 )
 
 const ERR_429 = "429:insufficient_quota"
-const ERR_429_HELP = "You are likely using a free OpenAI account without a subscription activated, this error means you are out of credits. To resolve it, set up a subscription at https://platform.openai.com/account/billing/overview. This requires a credit card and payment, run `butterfish help` for guidance on managing cost. Once you have a subscription set up you must issue a NEW OpenAI token, your previous token will not reflect the subscription."
+const ERR_429_HELP = "You are likely using a free Ollama account without a subscription activated, this error means you are out of credits. To resolve it, set up a subscription at https://ollama.com/account/billing/overview. This requires a credit card and payment, run `butterfish help` for guidance on managing cost. Once you have a subscription set up you must issue a NEW Ollama token, your previous token will not reflect the subscription."
 
 var LegacyModelTypes = []string{
-	openai.GPT3TextAda001,
-	openai.GPT3TextBabbage001,
-	openai.GPT3TextCurie001,
-	openai.GPT3TextDavinci001,
-	openai.GPT3TextDavinci002,
-	openai.GPT3TextDavinci003,
+	ollama.GPT3TextAda001,
+	ollama.GPT3TextBabbage001,
+	ollama.GPT3TextCurie001,
+	ollama.GPT3TextDavinci001,
+	ollama.GPT3TextDavinci002,
+	ollama.GPT3TextDavinci003,
 }
 
 func IsLegacyModel(model string) bool {
@@ -37,19 +37,19 @@ func IsLegacyModel(model string) bool {
 	return false
 }
 
-type GPT struct {
-	client *openai.Client
+type Ollama struct {
+	client *ollama.Client
 }
 
-func NewGPT(token, baseUrl string) *GPT {
-	config := openai.DefaultConfig(token)
+func NewOllama(token, baseUrl string) *Ollama {
+	config := ollama.DefaultConfig(token)
 	if baseUrl != "" {
 		config.BaseURL = baseUrl
 	}
 
-	client := openai.NewClientWithConfig(config)
+	client := ollama.NewClientWithConfig(config)
 
-	return &GPT{
+	return &Ollama{
 		client: client,
 	}
 }
@@ -106,7 +106,7 @@ func LogCompletionResponse(resp util.CompletionResponse, id string) {
 	PrintLoggingBox(box)
 }
 
-func LogCompletionRequest(req openai.CompletionRequest) {
+func LogCompletionRequest(req ollama.CompletionRequest) {
 	meta := fmt.Sprintf("model:       %s\ntemperature: %f\nmax_tokens:  %d",
 		req.Model, req.Temperature, req.MaxTokens)
 
@@ -140,7 +140,7 @@ func replaceNonAscii(s string) string {
 	return string(out)
 }
 
-func LogChatCompletionRequest(req openai.ChatCompletionRequest) {
+func LogChatCompletionRequest(req ollama.ChatCompletionRequest) {
 	meta := fmt.Sprintf("model:       %s\ntemperature: %f\nmax_tokens:  %d",
 		req.Model, req.Temperature, req.MaxTokens)
 
@@ -238,7 +238,7 @@ func LogChatCompletionRequest(req openai.ChatCompletionRequest) {
 	PrintLoggingBox(box)
 }
 
-func ChatCompletionRequestMessagesString(msgs []openai.ChatCompletionMessage) string {
+func ChatCompletionRequestMessagesString(msgs []ollama.ChatCompletionMessage) string {
 	out := []string{}
 	for _, msg := range msgs {
 		line := fmt.Sprintf("%s:  %s", msg.Role, msg.Content)
@@ -260,12 +260,12 @@ func ShellHistoryTypeToRole(t int) string {
 	}
 }
 
-func ShellHistoryBlockToGPTChat(block *util.HistoryBlock) *openai.ChatCompletionMessage {
+func ShellHistoryBlockToGPTChat(block *util.HistoryBlock) *ollama.ChatCompletionMessage {
 	role := ShellHistoryTypeToRole(block.Type)
 	name := ""
 	toolCallId := ""
-	var function *openai.FunctionCall
-	var toolCalls []openai.ToolCall
+	var function *ollama.FunctionCall
+	var toolCalls []ollama.ToolCall
 
 	if role == "function" {
 		// this case means this is a function call response and thus name should
@@ -277,18 +277,18 @@ func ShellHistoryBlockToGPTChat(block *util.HistoryBlock) *openai.ChatCompletion
 
 	} else if role == "assistant" {
 		if block.FunctionName != "" { // this is the model returning a function call
-			function = &openai.FunctionCall{
+			function = &ollama.FunctionCall{
 				Name:      block.FunctionName,
 				Arguments: block.FunctionParams,
 			}
 		}
 		if block.ToolCalls != nil { // this is the model returning tool calls
-			toolCalls = []openai.ToolCall{}
+			toolCalls = []ollama.ToolCall{}
 			for _, toolCall := range block.ToolCalls {
-				toolCalls = append(toolCalls, openai.ToolCall{
-					Type: openai.ToolTypeFunction,
+				toolCalls = append(toolCalls, ollama.ToolCall{
+					Type: ollama.ToolTypeFunction,
 					ID:   toolCall.Id,
-					Function: openai.FunctionCall{
+					Function: ollama.FunctionCall{
 						Name:      toolCall.Function.Name,
 						Arguments: toolCall.Function.Parameters,
 					},
@@ -298,7 +298,7 @@ func ShellHistoryBlockToGPTChat(block *util.HistoryBlock) *openai.ChatCompletion
 
 	}
 
-	return &openai.ChatCompletionMessage{
+	return &ollama.ChatCompletionMessage{
 		Role:         role,
 		Content:      block.Content,
 		Name:         name,
@@ -308,8 +308,8 @@ func ShellHistoryBlockToGPTChat(block *util.HistoryBlock) *openai.ChatCompletion
 	}
 }
 
-func ShellHistoryBlocksToGPTChat(systemMsg string, blocks []util.HistoryBlock) []openai.ChatCompletionMessage {
-	out := []openai.ChatCompletionMessage{
+func ShellHistoryBlocksToGPTChat(systemMsg string, blocks []util.HistoryBlock) []ollama.ChatCompletionMessage {
+	out := []ollama.ChatCompletionMessage{
 		{
 			Role:    "system",
 			Content: systemMsg,
@@ -330,7 +330,7 @@ func ShellHistoryBlocksToGPTChat(systemMsg string, blocks []util.HistoryBlock) [
 
 // We're doing completions through the chat API by default, this routes
 // to the legacy completion API if the model is the legacy model.
-func (this *GPT) Completion(request *util.CompletionRequest) (*util.CompletionResponse, error) {
+func (this *Ollama) Completion(request *util.CompletionRequest) (*util.CompletionResponse, error) {
 	var result *util.CompletionResponse
 	var err error
 
@@ -358,7 +358,7 @@ func IsCompletionModel(modelName string) bool {
 
 // We're doing completions through the chat API by default, this routes
 // to the legacy completion API if the model is the legacy model.
-func (this *GPT) CompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error) {
+func (this *Ollama) CompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error) {
 	var result *util.CompletionResponse
 	var err error
 
@@ -378,8 +378,8 @@ func (this *GPT) CompletionStream(request *util.CompletionRequest, writer io.Wri
 	return result, err
 }
 
-func (this *GPT) InstructCompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error) {
-	req := openai.CompletionRequest{
+func (this *Ollama) InstructCompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error) {
+	req := ollama.CompletionRequest{
 		Prompt:      request.Prompt,
 		Model:       request.Model,
 		MaxTokens:   request.MaxTokens,
@@ -388,7 +388,7 @@ func (this *GPT) InstructCompletionStream(request *util.CompletionRequest, write
 
 	strBuilder := strings.Builder{}
 
-	callback := func(resp openai.CompletionResponse) {
+	callback := func(resp ollama.CompletionResponse) {
 		if resp.Choices == nil || len(resp.Choices) == 0 {
 			return
 		}
@@ -430,14 +430,14 @@ func (this *GPT) InstructCompletionStream(request *util.CompletionRequest, write
 	return &response, err
 }
 
-func (this *GPT) SimpleChatCompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error) {
+func (this *Ollama) SimpleChatCompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error) {
 	if request.SystemMessage == "" {
 		return nil, errors.New("system message required for full chat completion")
 	}
 
-	req := openai.ChatCompletionRequest{
+	req := ollama.ChatCompletionRequest{
 		Model: request.Model,
-		Messages: []openai.ChatCompletionMessage{
+		Messages: []ollama.ChatCompletionMessage{
 			{
 				Role:    "system",
 				Content: request.SystemMessage,
@@ -450,21 +450,21 @@ func (this *GPT) SimpleChatCompletionStream(request *util.CompletionRequest, wri
 		MaxTokens:   request.MaxTokens,
 		Temperature: request.Temperature,
 		N:           1,
-		Functions:   convertToOpenaiFunctions(request.Functions),
-		Tools:       convertToOpenaiTools(request.Tools),
+		Functions:   convertToOllamaFunctions(request.Functions),
+		Tools:       convertToOllamaTools(request.Tools),
 	}
 
 	return this.doChatStreamCompletion(request.Ctx, req, writer, request.TokenTimeout, request.Verbose)
 }
 
-func convertToOpenaiFunctions(funcs []util.FunctionDefinition) []openai.FunctionDefinition {
+func convertToOllamaFunctions(funcs []util.FunctionDefinition) []ollama.FunctionDefinition {
 	if funcs == nil {
 		return nil
 	}
 
-	out := []openai.FunctionDefinition{}
+	out := []ollama.FunctionDefinition{}
 	for _, f := range funcs {
-		out = append(out, openai.FunctionDefinition{
+		out = append(out, ollama.FunctionDefinition{
 			Name:        f.Name,
 			Description: f.Description,
 			Parameters:  f.Parameters,
@@ -473,16 +473,16 @@ func convertToOpenaiFunctions(funcs []util.FunctionDefinition) []openai.Function
 	return out
 }
 
-func convertToOpenaiTools(tools []util.ToolDefinition) []openai.Tool {
+func convertToOllamaTools(tools []util.ToolDefinition) []ollama.Tool {
 	if tools == nil {
 		return nil
 	}
 
-	out := []openai.Tool{}
+	out := []ollama.Tool{}
 	for _, t := range tools {
-		tool := openai.Tool{
-			Type: openai.ToolTypeFunction,
-			Function: &openai.FunctionDefinition{
+		tool := ollama.Tool{
+			Type: ollama.ToolTypeFunction,
+			Function: &ollama.FunctionDefinition{
 				Name:        t.Function.Name,
 				Description: t.Function.Description,
 				Parameters:  t.Function.Parameters,
@@ -494,7 +494,7 @@ func convertToOpenaiTools(tools []util.ToolDefinition) []openai.Tool {
 	return out
 }
 
-func (this *GPT) FullChatCompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error) {
+func (this *Ollama) FullChatCompletionStream(request *util.CompletionRequest, writer io.Writer) (*util.CompletionResponse, error) {
 	gptHistory := ShellHistoryBlocksToGPTChat(request.SystemMessage, request.HistoryBlocks)
 
 	if len(gptHistory) == 0 || gptHistory[0].Role != "system" {
@@ -502,29 +502,29 @@ func (this *GPT) FullChatCompletionStream(request *util.CompletionRequest, write
 	}
 
 	if request.Prompt != "" {
-		gptHistory = append(gptHistory, openai.ChatCompletionMessage{
+		gptHistory = append(gptHistory, ollama.ChatCompletionMessage{
 			Role:    "user",
 			Content: request.Prompt,
 		})
 	}
 
-	req := openai.ChatCompletionRequest{
+	req := ollama.ChatCompletionRequest{
 		Model:       request.Model,
 		Messages:    gptHistory,
 		MaxTokens:   request.MaxTokens,
 		Temperature: request.Temperature,
 		N:           1,
-		Functions:   convertToOpenaiFunctions(request.Functions),
-		Tools:       convertToOpenaiTools(request.Tools),
+		Functions:   convertToOllamaFunctions(request.Functions),
+		Tools:       convertToOllamaTools(request.Tools),
 	}
 
 	return this.doChatStreamCompletion(
 		request.Ctx, req, writer, request.TokenTimeout, request.Verbose)
 }
 
-func (this *GPT) doChatStreamCompletion(
+func (this *Ollama) doChatStreamCompletion(
 	ctx context.Context,
-	req openai.ChatCompletionRequest,
+	req ollama.ChatCompletionRequest,
 	printWriter io.Writer,
 	tokenTimeout time.Duration, // max time before first chunk and between chunks
 	verbose bool) (*util.CompletionResponse, error) {
@@ -564,7 +564,7 @@ func (this *GPT) doChatStreamCompletion(
 		go timeoutRoutine()
 	}
 
-	callback := func(resp openai.ChatCompletionStreamResponse) {
+	callback := func(resp ollama.ChatCompletionStreamResponse) {
 		if tokenTimeout > 0 {
 			gotChunk <- true
 			go timeoutRoutine()
@@ -636,7 +636,7 @@ func (this *GPT) doChatStreamCompletion(
 	if verbose {
 		LogChatCompletionRequest(req)
 	}
-	var stream *openai.ChatCompletionStream
+	var stream *ollama.ChatCompletionStream
 
 	err := withExponentialBackoff(func() error {
 		var innerErr error
@@ -693,8 +693,8 @@ func (this *GPT) doChatStreamCompletion(
 }
 
 // Run a GPT completion request and return the response
-func (this *GPT) InstructCompletion(request *util.CompletionRequest) (*util.CompletionResponse, error) {
-	req := openai.CompletionRequest{
+func (this *Ollama) InstructCompletion(request *util.CompletionRequest) (*util.CompletionResponse, error) {
+	req := ollama.CompletionRequest{
 		Prompt:      request.Prompt,
 		Model:       request.Model,
 		MaxTokens:   request.MaxTokens,
@@ -728,11 +728,11 @@ func (this *GPT) InstructCompletion(request *util.CompletionRequest) (*util.Comp
 	return &response, nil
 }
 
-func (this *GPT) FullChatCompletion(request *util.CompletionRequest) (*util.CompletionResponse, error) {
+func (this *Ollama) FullChatCompletion(request *util.CompletionRequest) (*util.CompletionResponse, error) {
 	gptHistory := ShellHistoryBlocksToGPTChat(request.SystemMessage, request.HistoryBlocks)
 
 	if request.Prompt != "" {
-		gptHistory = append(gptHistory, openai.ChatCompletionMessage{
+		gptHistory = append(gptHistory, ollama.ChatCompletionMessage{
 			Role:    "user",
 			Content: request.Prompt,
 		})
@@ -742,26 +742,26 @@ func (this *GPT) FullChatCompletion(request *util.CompletionRequest) (*util.Comp
 		return nil, errors.New("System message required for full chat completion")
 	}
 
-	req := openai.ChatCompletionRequest{
+	req := ollama.ChatCompletionRequest{
 		Model:       request.Model,
 		Messages:    gptHistory,
 		MaxTokens:   request.MaxTokens,
 		Temperature: request.Temperature,
 		N:           1,
-		Functions:   convertToOpenaiFunctions(request.Functions),
+		Functions:   convertToOllamaFunctions(request.Functions),
 	}
 
 	return this.doChatCompletion(request.Ctx, req, request.Verbose)
 }
 
-func (this *GPT) SimpleChatCompletion(request *util.CompletionRequest) (*util.CompletionResponse, error) {
+func (this *Ollama) SimpleChatCompletion(request *util.CompletionRequest) (*util.CompletionResponse, error) {
 	if request.SystemMessage == "" {
 		return nil, errors.New("system message is required for full chat completion")
 	}
 
-	req := openai.ChatCompletionRequest{
+	req := ollama.ChatCompletionRequest{
 		Model: request.Model,
-		Messages: []openai.ChatCompletionMessage{
+		Messages: []ollama.ChatCompletionMessage{
 			{
 				Role:    "system",
 				Content: request.SystemMessage,
@@ -774,17 +774,17 @@ func (this *GPT) SimpleChatCompletion(request *util.CompletionRequest) (*util.Co
 		MaxTokens:   request.MaxTokens,
 		Temperature: request.Temperature,
 		N:           1,
-		Functions:   convertToOpenaiFunctions(request.Functions),
+		Functions:   convertToOllamaFunctions(request.Functions),
 	}
 
 	return this.doChatCompletion(request.Ctx, req, request.Verbose)
 }
 
-func (this *GPT) doChatCompletion(ctx context.Context, request openai.ChatCompletionRequest, verbose bool) (*util.CompletionResponse, error) {
+func (this *Ollama) doChatCompletion(ctx context.Context, request ollama.ChatCompletionRequest, verbose bool) (*util.CompletionResponse, error) {
 	if verbose {
 		LogChatCompletionRequest(request)
 	}
-	var resp openai.ChatCompletionResponse
+	var resp ollama.ChatCompletionResponse
 
 	err := withExponentialBackoff(func() error {
 		var innerErr error
@@ -813,8 +813,8 @@ func (this *GPT) doChatCompletion(ctx context.Context, request openai.ChatComple
 	return &response, nil
 }
 
-const GPTEmbeddingsMaxTokens = 8192
-const GPTEmbeddingsModel = openai.AdaEmbeddingV2
+const OllamaEmbeddingsMaxTokens = 8192
+const OllamaEmbeddingsModel = ollama.AdaEmbeddingV2
 
 func withExponentialBackoff(f func() error) error {
 	for i := 0; ; i++ {
@@ -827,7 +827,7 @@ func withExponentialBackoff(f func() error) error {
 			time.Sleep(sleepTime)
 
 			if i > 3 {
-				return fmt.Errorf("Getting 429s from OpenAI API, this means you're hitting the rate limit, giving up after %d retries", i)
+				return fmt.Errorf("Getting 429s from Ollama API, this means you're hitting the rate limit, giving up after %d retries", i)
 			}
 			continue
 		}
@@ -835,10 +835,10 @@ func withExponentialBackoff(f func() error) error {
 	}
 }
 
-func (this *GPT) Embeddings(ctx context.Context, input []string, verbose bool) ([][]float32, error) {
-	req := openai.EmbeddingRequest{
+func (this *Ollama) Embeddings(ctx context.Context, input []string, verbose bool) ([][]float32, error) {
+	req := ollama.EmbeddingRequest{
 		Input: input,
-		Model: GPTEmbeddingsModel,
+		Model: OllamaEmbeddingsModel,
 	}
 
 	if verbose {
