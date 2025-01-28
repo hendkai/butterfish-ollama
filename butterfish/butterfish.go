@@ -24,6 +24,7 @@ import (
 	"github.com/bakks/butterfish/embedding"
 	"github.com/bakks/butterfish/prompt"
 	"github.com/bakks/butterfish/util"
+	ollama "github.com/ollama/ollama-go"
 )
 
 // Main driver for the Butterfish set of command line tools. These are tools
@@ -444,8 +445,8 @@ func initLLM(config *ButterfishConfig) (LLM, error) {
 	} else if config.OpenAIToken != "" && config.LLMClient != nil {
 		return nil, errors.New("Must provide either an OpenAI Token or an LLM client, not both.")
 	} else if config.OpenAIToken != "" {
-		gpt := NewGPT(config.OpenAIToken, config.BaseURL)
-		return gpt, nil
+		ollama := NewOllama(config.OpenAIToken, config.BaseURL)
+		return ollama, nil
 	} else {
 		return config.LLMClient, nil
 	}

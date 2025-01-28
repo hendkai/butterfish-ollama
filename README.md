@@ -53,7 +53,7 @@ Is this thing working? # Type this literally into the CLI
 You can also install with `go install`:
 
 ```bash
-go install github.com/bakks/butterfish/cmd/butterfish@latest
+go install github.com/hendkai/butterfish-ollama/cmd/butterfish@latest
 $(go env GOPATH)/bin/butterfish shell
 Is this thing working? # Type this literally into the CLI
 ```
