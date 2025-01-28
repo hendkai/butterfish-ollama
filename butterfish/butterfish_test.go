@@ -102,3 +102,33 @@ func TestIncompleteAnsiSequence(t *testing.T) {
 	assert.False(t, incompleteAnsiSequence([]byte{0x1b, 0x5b, 0x30, 0x3b, 0x31, 0x3b, 0x32, 0x6d, 0x1b, 0x5b, 0x30, 0x6d}))
 	assert.False(t, incompleteAnsiSequence([]byte{0x20, 0x20, 0x1b, 0x5b, 0x30, 0x3b, 0x31, 0x3b, 0x32, 0x6d, 0x1b, 0x5b, 0x30, 0x6d}))
 }
+
+// Test for Ollama completions
+func TestOllamaCompletion(t *testing.T) {
+	ollama := NewOllama("test-token", "https://api.ollama.com")
+	request := &util.CompletionRequest{
+		Prompt:      "Hello, world!",
+		Model:       "ollama-model",
+		MaxTokens:   10,
+		Temperature: 0.7,
+	}
+
+	response, err := ollama.Completion(request)
+	assert.Nil(t, err)
+	assert.NotNil(t, response)
+	assert.NotEmpty(t, response.Completion)
+}
+
+// Test for Ollama embeddings
+func TestOllamaEmbeddings(t *testing.T) {
+	ollama := NewOllama("test-token", "https://api.ollama.com")
+	input := []string{"Hello, world!", "How are you?"}
+
+	embeddings, err := ollama.Embeddings(context.Background(), input, false)
+	assert.Nil(t, err)
+	assert.NotNil(t, embeddings)
+	assert.Equal(t, len(input), len(embeddings))
+	for _, embedding := range embeddings {
+		assert.NotEmpty(t, embedding)
+	}
+}

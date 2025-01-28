@@ -10,7 +10,7 @@ There's now a [Butterfish Neovim plugin](https://github.com/bakks/butterfish.nvi
 
 ## What is this thing?
 
-Butterfish is for people who work from the command line, it adds AI prompting to your shell (bash, zsh) with OpenAI. Think Github Copilot for shell.
+Butterfish is for people who work from the command line, it adds AI prompting to your shell (bash, zsh) with Ollama. Think Github Copilot for shell.
 
 Here's how it works: use your shell as normal, start a command with a capital letter to prompt the AI. The AI sees the shell history, so you can ask contextual questions like "Why did that command fail?".
 
@@ -58,12 +58,12 @@ $(go env GOPATH)/bin/butterfish shell
 Is this thing working? # Type this literally into the CLI
 ```
 
-The first invocation will prompt you to paste in an OpenAI API secret key. You can get an OpenAI key at [https://platform.openai.com/account/api-keys](https://platform.openai.com/account/api-keys).
+The first invocation will prompt you to paste in an Ollama API secret key. You can get an Ollama key at [https://ollama.com/account/api-keys](https://ollama.com/account/api-keys).
 
 The key will be written to `~/.config/butterfish/butterfish.env`, which looks like:
 
 ```
-OPENAI_TOKEN=sk-foobar
+OLLAMA_TOKEN=sk-foobar
 ```
 
 It may also be useful to alias the `butterfish` command to something shorter. If you add the following line to your `~/.zshrc` or `~/.bashrc` file then you can run it with only `bf`.
@@ -206,7 +206,7 @@ Here are some goals that work _sometimes_:
 
 ## Local Models
 
-Butterfish uses OpenAI models by default, but you can instead point it to any
+Butterfish uses Ollama models by default, but you can instead point it to any
 server with a OpenAI compatible API with the `--base-url (-u)` flag. For example:
 
 ```
@@ -215,7 +215,7 @@ butterfish prompt -u "http://localhost:5000/v1" "Is this thing working?"
 
 This enables using Butterfish with local or remote non-OpenAI models. Notes on this feature:
 
--   In practice using hosted models is much simpler than running your own, and Butterfish's prompts have been tuned for GPT-3.5/4, so you will probably get the best results using the default OpenAI models.
+-   In practice using hosted models is much simpler than running your own, and Butterfish's prompts have been tuned for GPT-3.5/4, so you will probably get the best results using the default Ollama models.
 -   Being OpenAI-API compatible in this case means implementing the [Chat Completions endpoint](https://platform.openai.com/docs/api-reference/chat/create) with streaming results.
 -   Butterfish will add your token to requests to the chat completions endpoint, so be careful about accidentally leaking credentials if you don't trust the server.
 -   Options for running a local model with a compatible interface include [LM Studio](https://lmstudio.ai/) and [text-generation-webui](https://github.com/oobabooga/text-generation-webui).
