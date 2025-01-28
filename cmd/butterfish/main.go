@@ -16,8 +16,8 @@ import (
 
 	//_ "net/http/pprof"
 
-	bf "github.com/bakks/butterfish/butterfish"
-	"github.com/bakks/butterfish/util"
+	bf "github.com/hendkai/butterfish-ollama/butterfish"
+	"github.com/hendkai/butterfish-ollama/util"
 )
 
 var ( // these are filled in at build time
@@ -30,11 +30,11 @@ const description = `Do useful things with LLMs from the command line, with a be
 
 Butterfish is a command line tool for working with LLMs. It has two modes: CLI command mode, used to prompt LLMs, summarize files, and manage embeddings, and Shell mode: Wraps your local shell to provide easy prompting and autocomplete.
 
-Butterfish looks for an API key in OPENAI_API_KEY, or alternatively stores an OpenAI auth token at ~/.config/butterfish/butterfish.env.
+Butterfish looks for an API key in OLLAMA_API_KEY, or alternatively stores an Ollama auth token at ~/.config/butterfish/butterfish.env.
 
-Prompts are stored in ~/.config/butterfish/prompts.yaml. Butterfish logs to the system temp dir, usually to /var/tmp/butterfish.log. To print the full prompts and responses from the OpenAI API, use the --verbose flag. Support can be found at https://github.com/bakks/butterfish.
+Prompts are stored in ~/.config/butterfish/prompts.yaml. Butterfish logs to the system temp dir, usually to /var/tmp/butterfish.log. To print the full prompts and responses from the Ollama API, use the --verbose flag. Support can be found at https://github.com/hendkai/butterfish-ollama.
 
-If you do not have OpenAI free credits then you will need a subscription and you will need to pay for OpenAI API use. If you're using Shell Mode, autosuggest will probably be the most expensive part. You can reduce spend by disabling shell autosuggest (-A) or increasing the autosuggest timeout (e.g. -t 2000). See "butterfish shell --help".
+If you do not have Ollama free credits then you will need a subscription and you will need to pay for Ollama API use. If you're using Shell Mode, autosuggest will probably be the most expensive part. You can reduce spend by disabling shell autosuggest (-A) or increasing the autosuggest timeout (e.g. -t 2000). See "butterfish shell --help".
 `
 const license = "MIT License - Copyright (c) 2023 Peter Bakkum"
 const defaultEnvPath = "~/.config/butterfish/butterfish.env"
@@ -44,18 +44,18 @@ const shell_help = `Start the Butterfish shell wrapper. This wraps your existing
 
 Use:
   - Type a normal command, like 'ls -l' and press enter to execute it
-  - Start a command with a capital letter to send it to GPT, like 'How do I recursively find local .py files?'
+  - Start a command with a capital letter to send it to Ollama, like 'How do I recursively find local .py files?'
   - Autosuggest will print command completions, press tab to fill them in
-  - GPT will be able to see your shell history, so you can ask contextual questions like 'why didnt my last command work?'
-	- Start a command with ! to enter Goal Mode, in which GPT will act as an Agent attempting to accomplish your goal by executing commands, for example '!Run make in this directory and debug any problems'.
-	- Start a command with !! to enter Unsafe Goal Mode, in which GPT will execute commands without confirmation. USE WITH CAUTION.
+  - Ollama will be able to see your shell history, so you can ask contextual questions like 'why didnt my last command work?'
+	- Start a command with ! to enter Goal Mode, in which Ollama will act as an Agent attempting to accomplish your goal by executing commands, for example '!Run make in this directory and debug any problems'.
+	- Start a command with !! to enter Unsafe Goal Mode, in which Ollama will execute commands without confirmation. USE WITH CAUTION.
 
 Here are special Butterfish commands:
   - Help : Give hints about usage.
   - Status : Show the current Butterfish configuration.
-  - History : Print out the history that would be sent in a GPT prompt.
+  - History : Print out the history that would be sent in an Ollama prompt.
 
-If you do not have OpenAI free credits then you will need a subscription and you will need to pay for OpenAI API use. Autosuggest will probably be the most expensive feature. You can reduce spend by disabling shell autosuggest (-A) or increasing the autosuggest timeout (e.g. -t 2000).`
+If you do not have Ollama free credits then you will need a subscription and you will need to pay for Ollama API use. Autosuggest will probably be the most expensive feature. You can reduce spend by disabling shell autosuggest (-A) or increasing the autosuggest timeout (e.g. -t 2000).`
 
 type VerboseFlag bool
 
@@ -75,15 +75,15 @@ type CliConfig struct {
 	Verbose      VerboseFlag      `short:"v" default:"false" help:"Verbose mode, prints full LLM prompts (sometimes to log file). Use multiple times for more verbosity, e.g. -vv."`
 	Log          bool             `short:"L" default:"false" help:"Write verbose content to a log file rather than stdout, usually /var/tmp/butterfish.log"`
 	Version      kong.VersionFlag `short:"V" help:"Print version information and exit."`
-	BaseURL      string           `short:"u" default:"https://api.openai.com/v1" help:"Base URL for OpenAI-compatible API. Enables local models with a compatible interface."`
+	BaseURL      string           `short:"u" default:"https://api.ollama.com/v1" help:"Base URL for Ollama-compatible API. Enables local models with a compatible interface."`
 	TokenTimeout int              `short:"z" default:"10000" help:"Timeout before first prompt token is received and between individual tokens. In milliseconds."`
 	LightColor   bool             `short:"l" default:"false" help:"Light color mode, appropriate for a terminal with a white(ish) background"`
 
 	Shell struct {
 		Bin                       string `short:"b" help:"Shell to use (e.g. /bin/zsh), defaults to $SHELL."`
-		Model                     string `short:"m" default:"gpt-4o" help:"Model for when the user manually enters a prompt."`
+		Model                     string `short:"m" default:"ollama" help:"Model for when the user manually enters a prompt."`
 		AutosuggestDisabled       bool   `short:"A" default:"false" help:"Disable autosuggest."`
-		AutosuggestModel          string `short:"a" default:"gpt-3.5-turbo-instruct" help:"Model for autosuggest"`
+		AutosuggestModel          string `short:"a" default:"ollama-instruct" help:"Model for autosuggest"`
 		AutosuggestTimeout        int    `short:"t" default:"500" help:"Delay after typing before autosuggest (lower values trigger more calls and are more expensive). In milliseconds."`
 		NewlineAutosuggestTimeout int    `short:"T" default:"3500" help:"Timeout for autosuggest on a fresh line, i.e. before a command has started. Negative values disable. In milliseconds."`
 		NoCommandPrompt           bool   `short:"p" default:"false" help:"Don't change command prompt (shell PS1 variable). If not set, an emoji will be added to the prompt as a reminder you're in Shell Mode."`
@@ -97,7 +97,7 @@ type CliConfig struct {
 	bf.CliCommandConfig
 }
 
-func getOpenAIToken() string {
+func getOllamaToken() string {
 	path, err := homedir.Expand(defaultEnvPath)
 	if err != nil {
 		log.Fatal(err)
@@ -106,18 +106,13 @@ func getOpenAIToken() string {
 	// We attempt to get a token from env vars plus an env file
 	godotenv.Load(path)
 
-	token := os.Getenv("OPENAI_TOKEN")
-	if token != "" {
-		return token
-	}
-
-	token = os.Getenv("OPENAI_API_KEY")
+	token := os.Getenv("OLLAMA_TOKEN")
 	if token != "" {
 		return token
 	}
 
 	// If we don't have a token, we'll prompt the user to create one
-	fmt.Printf("Butterfish requires an OpenAI API key, please visit https://beta.openai.com/account/api-keys to create one and paste it below (it should start with sk-):\n")
+	fmt.Printf("Butterfish requires an Ollama API key, please visit https://ollama.com/account/api-keys to create one and paste it below (it should start with sk-):\n")
 
 	// read in the token and validate
 	fmt.Scanln(&token)
@@ -144,7 +139,7 @@ func getOpenAIToken() string {
 	}
 	defer envFile.Close()
 
-	content := fmt.Sprintf("OPENAI_TOKEN=%s\n", token)
+	content := fmt.Sprintf("OLLAMA_TOKEN=%s\n", token)
 	_, err = envFile.WriteString(content)
 	if err != nil {
 		fmt.Printf("Error writing file: %s\n", err.Error())
@@ -157,7 +152,7 @@ func getOpenAIToken() string {
 
 func makeButterfishConfig(options *CliConfig) *bf.ButterfishConfig {
 	config := bf.MakeButterfishConfig()
-	config.OpenAIToken = getOpenAIToken()
+	config.OpenAIToken = getOllamaToken()
 	config.BaseURL = options.BaseURL
 	config.PromptLibraryPath = defaultPromptPath
 	config.TokenTimeout = time.Duration(options.TokenTimeout) * time.Millisecond

@@ -1,4 +1,3 @@
-
 gofiles := $(shell find . -name '*.go' -type f -not -path "./vendor/*")
 buildtime := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 commit := $(shell bash ./bin/gitcommit.sh)
@@ -35,4 +34,3 @@ licenses:
 
 
 .PHONY: all clean watch test build licenses install
-
