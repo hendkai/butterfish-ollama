@@ -191,7 +191,7 @@ var GruvboxLight = ColorScheme{
 	Color2:     "#D79921",
 	Color3:     "#458588",
 	Color4:     "#B16286",
-	Color5:     "#689D6A",
+	Color5     "#689D6A",
 	Color6:     "#D65D0E",
 	Grey:       "#928374",
 }

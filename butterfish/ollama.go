@@ -33,7 +33,6 @@ func IsLegacyModel(model string) bool {
 		if model == legacyModel {
 			return true
 		}
-		return false
 	}
 	return false
 }

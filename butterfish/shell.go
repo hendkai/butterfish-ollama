@@ -19,7 +19,7 @@ import (
 
 	"github.com/bakks/butterfish/prompt"
 	"github.com/bakks/butterfish/util"
-	"github.com/sashabaranov/go-openai/jsonschema"
+	ollama "github.com/ollama/ollama-go"
 
 	"github.com/bakks/tiktoken-go"
 	"github.com/mitchellh/go-ps"
@@ -563,7 +563,7 @@ func (this *ShellState) ParsePS1(data string) (int, int, string) {
 
 // zsh appears to use this sequence to clear formatting and the rest of the line
 // before printing a prompt
-var ZSH_CLEAR_REGEX = regexp.MustCompile("^\x1b\\[1m\x1b\\[3m%\x1b\\[23m\x1b\\[1m\x1b\\[0m\x20+\x0d\x20\x0d")
+var ZSH_CLEAR_REGEX = regexp.MustCompile("^\x1b\\[1m\x1b\\[3m%\x1b[23m\x1b\\[1m\x1b\\[0m\x20+\x0d\x20\x0d")
 
 func (this *ShellState) FilterChildOut(data string) bool {
 	if len(data) > 0 && strings.HasPrefix(data, "\x1b[1m") && ZSH_CLEAR_REGEX.MatchString(data) {
